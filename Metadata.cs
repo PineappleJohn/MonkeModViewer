@@ -11,6 +11,7 @@ namespace MonkeModViewer
         public string Author { get; set; }
         public string Description { get; set; }
         public string GUID { get; set; }
+        public object[] otherSettings { get; set; }
 
         public Metadata(string name, string version, string author, string description, string gUID)
         {

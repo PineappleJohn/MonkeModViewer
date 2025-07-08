@@ -14,6 +14,8 @@ using UnityEngine;
 // Ensure these dependencies are referenced in your project.  
 // If using a Unity project, you can add them via the Unity Package Manager or import the required DLLs.
 using TMPro;
+using System.Collections.Generic;
+using UnityEngine.Animations.Rigging;
 #pragma warning disable IDE0051
 
 namespace MonkeModViewer
@@ -25,6 +27,8 @@ namespace MonkeModViewer
         public static bool IsEnabled { get; private set; }
         public static bool initialized = false;
         public static AssetBundle bundle;
+
+        public Dictionary<Transform, Transform> colliders = new Dictionary<Transform, Transform>();
 
         private void OnEnable()
         {
@@ -76,12 +80,45 @@ namespace MonkeModViewer
 
             try // Adding buttons and getting assemblies
             {
+                var but = GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Back");
+                but.AddComponent<Behaviour.Collision>().onClick += () =>
+                {
+                    MonkeModItems.modDesc.SetActive(false);
+                    MonkeModItems.modList.SetActive(true);
+                };
                 foreach (Metadata metadata in AssemblyManager.FindDllsWithSpecificClasses(Paths.PluginPath)) 
                 {
                     var button = Instantiate(MonkeModItems.mmvButton, MonkeModItems.mmvButton.transform.parent);
                     Logging.Info(metadata.GUID, metadata.Name, metadata.Version, metadata.Description);
                     button.name = metadata.Name;
                     button.transform.Find("Text (TMP)").GetComponent<TextMeshProUGUI>().text = metadata.Name;
+                    var collider = button.transform.Find("Collider");
+
+
+                    collider.gameObject.AddComponent<Behaviour.Collision>().onClick += () =>
+                    {
+                        MonkeModItems.modList.SetActive(false);
+                        MonkeModItems.modDesc.SetActive(true);
+
+                        GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Name").GetComponent<TextMeshProUGUI>().text = $"{metadata.Name} - v{metadata.Version}";
+                        GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Author").GetComponent<TextMeshProUGUI>().text = $"Author(s): {metadata.Author}";
+                        GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Enabled").GetComponent<TextMeshProUGUI>().text = "Not implemented";
+                        if (!metadata.Description.IsNullOrEmpty())
+                        {
+                            GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Description").GetComponent<TextMeshProUGUI>().color = Color.white;
+                            GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Description").GetComponent<TextMeshProUGUI>().text = metadata.Description;
+                        }
+                        else
+                        {
+                            GameObject.Find("MMV/Canvas/Panel/Description/Scroll View/Viewport/Content/Description").GetComponent<TextMeshProUGUI>().text = "No description found";
+                        }
+                    };
+
+                    var colliderTarget = new GameObject("ColliderTarget");
+                    colliderTarget.transform.SetParent(collider.parent);
+                    colliderTarget.transform.localPosition = collider.localPosition;
+                    collider.SetParent(null);
+                    colliders.Add(colliderTarget.transform, collider);
                 }
                 Destroy(MonkeModItems.mmvButton);
             }
@@ -90,6 +127,15 @@ namespace MonkeModViewer
                 Logging.Fatal("Failed to initialize MonkeModViewer!");
                 Logging.Exception(e);
                 return;
+            }
+        }
+
+        private void Update() {
+            foreach (var kvp in colliders)
+            {
+                if (kvp.Key == null || kvp.Value == null) continue;
+                kvp.Value.position = kvp.Key.position;
+                kvp.Value.rotation = kvp.Key.rotation;
             }
         }
     }
@@ -128,6 +174,7 @@ namespace MonkeModViewer
             GUID = "John.MonkeModViewer",
             Name = "MonkeModViewer",
             Path = "MonkeModViewer/Assets/monkemodviewer",
+            Description = "Yeah!",
             Version = "1.0";
     }
 }
